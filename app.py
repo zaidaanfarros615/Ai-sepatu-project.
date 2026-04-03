@@ -6,124 +6,144 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
 
-# --- KONFIGURASI CAD DARK MODE ---
-st.set_page_config(page_title="NORYZE CAD PRO", layout="wide")
+# --- CONFIGURASI UI ---
+st.set_page_config(page_title="NORYZE AI CAD ULTIMATE", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #0b0e14; color: #00ff41; }
     .sidebar .sidebar-content { background-color: #161b22; border-right: 1px solid #30363d; }
-    .stMetric { background: #161b22; border: 1px solid #30363d; padding: 10px; border-radius: 8px; }
-    .cad-header { color: #ffffff; font-family: 'Courier New', Courier, monospace; border-bottom: 2px solid #00ff41; }
+    .stMetric { background: #1c2128; border: 1px solid #00ff41; padding: 10px; border-radius: 5px; }
+    .cad-label { color: #8b949e; font-size: 12px; font-weight: bold; text-transform: uppercase; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNGSI ENGINE CAD ---
-def draw_cad_workspace(p, l, v_point, j_point, margin, size_name):
-    fig, ax = plt.subplots(figsize=(12, 7), facecolor='#0b0e14')
+# --- ENGINE AI: DETEKSI DIMENSI OTOMATIS ---
+def ai_dimension_detector(uploaded_file):
+    if uploaded_file is None:
+        return 25.0, 10.0, None
+    
+    # Konversi ke format OpenCV
+    file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
+    img = cv2.imdecode(file_bytes, 1)
+    
+    # Image Processing (Canny Edge Detection)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edged = cv2.Canny(blur, 50, 150)
+    
+    # Cari Kontur Terbesar (Pola)
+    contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if contours:
+        c = max(contours, key=cv2.contourArea)
+        x, y, w, h = cv2.boundingRect(c)
+        
+        # Kalibrasi dasar (asumsi standard 1px = sekian cm)
+        # User bisa memperbaiki ini di editor
+        p_detected = h / 37.8 
+        l_detected = w / 37.8
+        return round(p_detected, 2), round(l_detected, 2), edged
+    
+    return 25.0, 10.0, edged
+
+# --- ENGINE CAD DRAWING ---
+def render_cad_canvas(p, l, margin, size):
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor='#0b0e14')
     ax.set_facecolor('#0b0e14')
     
-    # Grid Utama (Major & Minor)
-    ax.grid(which='major', color='#1f242c', linestyle='-', linewidth=0.8)
-    ax.grid(which='minor', color='#161b22', linestyle=':', linewidth=0.5)
-    ax.minorticks_on()
-
-    # Drawing Pola (Main Object)
-    main_pola = patches.Rectangle((0, 0), p, l, linewidth=2, edgecolor='#00ff41', facecolor='none')
-    ax.add_patch(main_pola)
-
-    # Drawing Seam Allowance / Cutting Margin (Layer 2)
-    margin_pola = patches.Rectangle((-margin, -margin), p+(2*margin), l+(2*margin), 
-                                    linewidth=1, edgecolor='#ff3e3e', linestyle='--', facecolor='none', label='Cutting Margin')
-    ax.add_patch(margin_pola)
-
-    # Drafting Lines (Titik Ukur ATK Yogyakarta)
-    ax.axvline(x=v_point, color='#3b82f6', alpha=0.6, label='Vamp Line')
-    ax.axvline(x=j_point, color='#f59e0b', alpha=0.6, label='Joint Line')
-    ax.scatter([v_point, j_point], [l/2, l/2], color='white', zorder=5)
-
-    # Label Dimensi ala AutoCAD
-    ax.annotate('', xy=(0, -2), xytext=(p, -2), arrowprops=dict(arrowstyle='<->', color='white'))
-    ax.text(p/2, -3.5, f"{p} cm", color='white', ha='center', fontsize=10)
+    # Drawing Grid
+    ax.grid(color='#1f242c', linestyle='-', linewidth=0.5)
     
-    ax.set_xlim(-5, p + 10)
-    ax.set_ylim(-5, l + 10)
-    ax.set_title(f"CAD VIEWER - LAYER: SIZE {size_name}", color='white', loc='left', fontsize=14)
-    ax.legend(facecolor='#0b0e14', labelcolor='white', loc='upper right')
+    # Layer 1: Pola Utama (Green Neon)
+    rect = patches.Rectangle((0, 0), p, l, linewidth=2, edgecolor='#00ff41', facecolor='none', label='Main Pattern')
+    ax.add_patch(rect)
+    
+    # Layer 2: Cutting Margin (Red Dash)
+    if margin > 0:
+        cut_rect = patches.Rectangle((-margin, -margin), p+(2*margin), l+(2*margin), 
+                                     linewidth=1, edgecolor='#ff3e3e', linestyle='--', facecolor='none', label='Seam Allowance')
+        ax.add_patch(cut_rect)
+    
+    # Dimensi Dinamis
+    ax.annotate(f'{p} cm', xy=(p/2, l+1), color='white', ha='center', fontsize=9)
+    ax.annotate(f'{l} cm', xy=(p+1, l/2), color='white', rotation=-90, va='center', fontsize=9)
+    
+    ax.set_xlim(-5, p+10)
+    ax.set_ylim(-5, l+10)
+    ax.axis('off')
+    ax.set_title(f"CAD WORKSPACE [MODE: EDITING SIZE {size}]", color='#00ff41', fontsize=10)
     return fig
 
-# --- TOOLBAR UTAMA (SIDEBAR) ---
+# --- SIDEBAR TOOLBAR ---
 with st.sidebar:
-    st.markdown("<h2 class='cad-header'>CAD TOOLBAR</h2>", unsafe_allow_html=True)
+    st.title("🛠️ CAD TOOLBAR")
     
-    # FITUR REQUEST: INPUT DARI ALBUM JANGAN HILANG
-    st.subheader("📁 Input Data")
-    input_type = st.radio("Source:", ["📷 Camera", "🖼️ Gallery/Album"])
-    file_pola = None
-    if input_type == "📷 Camera":
-        file_pola = st.camera_input("Scan Pola")
+    # INPUT SOURCE (Album / Camera)
+    st.subheader("📁 Input Source")
+    src = st.radio("Ambil Data Dari:", ["Galeri Album", "Kamera Langsung"])
+    if src == "Galeri Album":
+        uploaded = st.file_uploader("Upload Foto Pola", type=['jpg','png','jpeg'])
     else:
-        file_pola = st.file_uploader("Upload Pola dari Album", type=['png', 'jpg', 'jpeg'])
-
-    st.markdown("---")
-    st.subheader("🛠️ Drafting Tools")
-    tool = st.selectbox("Active Command:", ["SELECT", "MEASURE", "OFFSET (Margin)", "GRADING"])
+        uploaded = st.camera_input("Scan Pola")
     
+    # AI SCAN BUTTON
+    st.markdown("---")
+    ai_p, ai_l, ai_view = ai_dimension_detector(uploaded)
+    
+    if uploaded:
+        st.success(f"AI Detected: {ai_p}x{ai_l} cm")
+        if st.checkbox("Lihat Jalur AI Scan"):
+            st.image(ai_view, use_container_width=True)
+
+    # PROPERTY EDITOR
     st.subheader("📐 Property Editor")
-    p_master = st.number_input("Length (cm)", value=25.5)
-    l_master = st.number_input("Width (cm)", value=10.0)
-    c_margin = st.slider("Cutting Margin (mm)", 0, 10, 5) / 10 # Convert to CM
-    
-    st.subheader("🧪 Nesting & Cutting")
-    material_w = st.number_input("Lebar Bahan (cm)", value=100)
-    gap = st.slider("Gap antar Pola (cm)", 0.1, 2.0, 0.5)
+    edit_p = st.number_input("Length (L)", value=ai_p)
+    edit_l = st.number_input("Width (W)", value=ai_l)
+    edit_m = st.slider("Cutting Margin (mm)", 0, 10, 5) / 10
+    edit_sz = st.number_input("Master Size", value=40)
 
-# --- WORKSPACE AREA ---
-col_main, col_stats = st.columns([3, 1])
+# --- MAIN WORKSPACE ---
+col_canvas, col_tools = st.columns([3, 1])
 
-with col_main:
-    # Logic ATK Engineering
-    v_p = p_master * 0.7
-    j_p = p_master * 0.66
+with col_canvas:
+    # Render Utama
+    st.pyplot(render_cad_canvas(edit_p, edit_l, edit_m, edit_sz))
     
-    # Render Drawing
-    st.pyplot(draw_cad_workspace(p_master, l_master, v_p, j_p, c_margin, "MASTER"))
-    
-    # Fitur "P-Cutting" (Prompt Permintaan)
-    st.chat_input("Ketik perintah CAD (Contoh: 'Buat grading size 38-44' atau 'Hitung efisiensi bahan')")
+    # P-CUTTING COMMAND (Prompt Editing)
+    cmd = st.chat_input("P-Cutting: Ketik perintah (Contoh: 'Ubah panjang ke 27' atau 'Tambah margin 1cm')")
+    if cmd:
+        st.info(f"Command '{cmd}' diterima. Memproses modifikasi...")
 
-with col_stats:
-    st.markdown("<h3 style='color:white'>Object Info</h3>", unsafe_allow_html=True)
-    st.metric("Total Perimeter", f"{round(2*(p_master+l_master), 2)} cm")
-    st.metric("Cutting Area", f"{round(p_master * l_master, 2)} cm²")
+with col_tools:
+    st.markdown("<p class='cad-label'>Engineering Data</p>", unsafe_allow_html=True)
+    st.metric("VAMP POINT", f"{round(edit_p * 0.7, 2)} cm")
+    st.metric("JOINT LINE", f"{round(edit_p * 0.66, 2)} cm")
     
     st.markdown("---")
-    st.subheader("📦 Nesting Calc")
-    # Hitung berapa banyak pola muat dalam 1 baris bahan
-    per_row = int(material_w / (l_master + gap))
-    st.write(f"Estimasi per Baris: **{per_row} pcs**")
-    st.write(f"Efisiensi Ruang: **{round(((l_master*per_row)/material_w)*100, 1)}%**")
-
-# --- GRADING AUTO-GENERATION ---
-st.markdown("---")
-st.header("📐 Automated Grading Engine")
-col_grad = st.columns(5)
-
-sizes = [38, 39, 40, 41, 42]
-for i, s in enumerate(sizes):
-    diff = s - 40 # Master 40
-    p_s = p_master + (diff * 0.66)
-    l_s = l_master + (diff * 0.2)
+    st.markdown("<p class='cad-label'>Nesting / Efficiency</p>", unsafe_allow_html=True)
+    eff = (edit_p * edit_l) / ((edit_p+1) * (edit_l+1)) * 100
+    st.write(f"Efisiensi Bahan: **{round(eff, 1)}%**")
     
-    with col_grad[i]:
-        st.metric(f"Size {s}", f"{round(p_s, 2)} cm")
-        # Mini Drawing
-        f_m, a_m = plt.subplots(figsize=(2, 2), facecolor='#0b0e14')
-        a_m.set_facecolor('#0b0e14')
-        a_m.add_patch(patches.Rectangle((0,0), p_s, l_s, edgecolor='#00ff41', facecolor='none'))
-        a_m.axis('off')
-        a_m.set_xlim(-2, 35)
-        a_m.set_ylim(-2, 15)
-        st.pyplot(f_m)
+# --- GRADING SECTION ---
+st.markdown("---")
+st.subheader("📊 Automated Multi-Size Grading")
+sizes = [37, 38, 39, 40, 41, 42, 43]
+cols = st.columns(len(sizes))
 
-st.caption("NORYZE CAD PRO v10.0 | High-Precision Footwear Engineering")
+for i, s in enumerate(sizes):
+    diff = s - edit_sz
+    grad_p = edit_p + (diff * 0.66)
+    grad_l = edit_l + (diff * 0.2)
+    with cols[i]:
+        st.metric(f"SZ {s}", f"{round(grad_p, 1)}")
+        # Mini Preview
+        fig_m, ax_m = plt.subplots(figsize=(1.5, 1.5), facecolor='#0b0e14')
+        ax_m.set_facecolor('#0b0e14')
+        ax_m.add_patch(patches.Rectangle((0,0), grad_p, grad_l, edgecolor='#00ff41', facecolor='none'))
+        ax_m.axis('off')
+        ax_m.set_xlim(-2, 35)
+        ax_m.set_ylim(-2, 15)
+        st.pyplot(fig_m)
+
+st.caption("NORYZE CAD ULTIMATE v11.0 | 2026 Integrated AI System")
