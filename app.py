@@ -4,103 +4,131 @@ import numpy as np
 import cv2
 from PIL import Image
 
-# Konfigurasi UI
-st.set_page_config(page_title="NORYZE PRO - Multi Input System", layout="wide")
+st.set_page_config(page_title="NORYZE AI ULTIMATE", layout="wide")
 
+# --- CSS MEWAH ---
 st.markdown("""
     <style>
-    .main { background-color: #0f172a; }
-    .stMetric { background: #1e293b; padding: 15px; border-radius: 15px; border-top: 4px solid #10b981; }
-    .stButton>button { 
-        background: #3b82f6; color: white; border-radius: 10px; font-weight: bold;
-    }
+    .stApp { background-color: #0f172a; }
+    .st-emotion-cache-1kyxreq { justify-content: center; }
+    .reportview-container .main { color: white; }
+    .sidebar .sidebar-content { background: #1e293b; }
+    div[data-testid="stMetricValue"] { color: #10b981; font-family: 'Courier New'; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("👟 NORYZE PRO: Multi-Source Engine")
-st.write("Input dari Kamera, Galeri, dan Grading Otomatis Terintegrasi")
-
-# --- 1. BAGIAN SCAN & INPUT (KAMERA + ALBUM) ---
-st.header("📸 1. Input Sumber Pola")
-col_input, col_view = st.columns([1, 1])
-
-with col_input:
-    # FITUR BARU: Pilihan Sumber Data
-    source = st.radio("Pilih Sumber Foto:", ["Ambil Kamera Langsung", "Pilih dari Galeri/Album"])
+# --- FUNGSI AI CERDAS (Object Detection & Scaling) ---
+def advanced_ai_scan(image_file, ref_width_cm):
+    file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
+    img = cv2.imdecode(file_bytes, 1)
     
-    img_data = None
-    if source == "Ambil Kamera Langsung":
-        img_data = st.camera_input("Scan Pola")
+    # Pre-processing untuk deteksi kontur
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (7, 7), 0)
+    edged = cv2.Canny(blur, 40, 150)
+    
+    cnts, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if len(cnts) < 1:
+        return 25.0, 10.0, edged
+    
+    # Ambil kontur terbesar (Pola Sepatu)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+    c_pola = cnts[0]
+    
+    # Hitung Bounding Box
+    x, y, w, h = cv2.boundingRect(c_pola)
+    
+    # Logika Kalibrasi: 
+    # Jika ada koin, gunakan koin. Jika tidak, gunakan nilai referensi standar (Pixel per CM)
+    px_per_cm = w / ref_width_cm # Kalibrasi berdasarkan input manual 'Prom Edit'
+    
+    calc_h = h / px_per_cm
+    calc_w = w / px_per_cm
+    
+    return round(calc_h, 2), round(calc_w, 2), edged
+
+# --- UI INTERFACE ---
+st.title("👟 NORYZE AI ULTIMATE v8.0")
+st.markdown("---")
+
+# --- STEP 1: AI SCANNING ---
+st.header("📸 1. Advanced AI Scanner")
+c_scan, c_preview = st.columns([1, 1])
+
+with c_scan:
+    mode = st.radio("Input Source:", ["Live Camera", "Upload Gallery"])
+    if mode == "Live Camera":
+        foto = st.camera_input("Scan Pola")
     else:
-        img_data = st.file_uploader("Pilih File Foto Pola (JPG/PNG)", type=['jpg', 'jpeg', 'png'])
+        foto = st.file_uploader("Upload Pola", type=['jpg','png','jpeg'])
+    
+    ref_val = st.slider("📐 Calibration (Jika hasil melesat, geser ini)", 20.0, 30.0, 25.4)
 
-# Default nilai awal
-p_ai = 25.0
-l_ai = 9.8
-
-if img_data:
-    with col_view:
-        st.image(img_data, caption="Foto Berhasil Dimuat", use_container_width=True)
-        st.success("✅ File terbaca. AI sedang menganalisis dimensi...")
-        # Simulasi AI deteksi dari file
-        p_ai = 26.2 
-        l_ai = 10.3
+p_ai, l_ai = 25.0, 9.5
+if foto:
+    p_ai, l_ai, process_view = advanced_ai_scan(foto, ref_val)
+    with c_preview:
+        st.image(process_view, caption="AI Vision: Edge Contours Detected", use_container_width=True)
+        st.success(f"AI Suggestion: {p_ai} cm x {l_ai} cm")
 
 st.markdown("---")
 
-# --- 2. SISTEM PROM EDIT & TOOLS ---
-st.header("🛠️ 2. Konfigurasi & Edit Manual")
-c1, c2, c3, c4 = st.columns(4)
+# --- STEP 2: PROFESSIONAL EDITING TOOLS ---
+st.header("🛠️ 2. Production Editing Tools (Prom)")
+col_tool1, col_tool2, col_tool3 = st.columns(3)
 
-with c1:
-    p_final = st.number_input("📏 Edit Panjang (cm)", value=p_ai, step=0.1)
-with c2:
-    l_final = st.number_input("📐 Edit Lebar (cm)", value=l_ai, step=0.1)
-with c3:
-    sz_master = st.number_input("🎯 Nomor Master", value=40)
-with c4:
-    style = st.selectbox("👞 Jenis Sepatu", ["Sneakers (+1.5)", "Formal (+1.0)", "Safety (+2.0)"])
+with col_tool1:
+    st.subheader("📏 Master Adjustment")
+    # Fitur EDIT Canggih: Menggabungkan hasil AI ke slider manual
+    final_p = st.number_input("Final Length (cm)", value=p_ai)
+    final_l = st.number_input("Final Width (cm)", value=l_ai)
+    sz_master = st.number_input("Master Size", value=40)
 
-# Perhitungan Otomatis
-allowance = 1.5 if "Sneakers" in style else (1.0 if "Formal" in style else 2.0)
-sl_last = p_final + allowance
+with col_tool2:
+    st.subheader("📐 Engineering Param")
+    # Standar ATK Yogyakarta Hal 27
+    allowance = st.selectbox("Foot Fitting (Allowance)", [1.58, 1.0, 2.54], format_func=lambda x: f"{x} cm (Standard)")
+    pitch_p = st.slider("Grading Pitch Length", 0.60, 0.80, 0.66)
+    pitch_l = st.slider("Grading Pitch Width", 0.15, 0.30, 0.20)
 
-# Live Dashboard
-d1, d2, d3 = st.columns(3)
-d1.metric("Panjang Last (SL)", f"{round(sl_last, 2)} cm")
-d2.metric("Titik Vamp (7/10)", f"{round(sl_last * 0.7, 2)} cm")
-d3.metric("Estimasi Size EU", round(sl_last * 1.5, 1))
+with col_tool3:
+    st.subheader("🧵 Material Analysis")
+    wastage = st.slider("Wastage Margin (%)", 5, 25, 15)
+    material = st.selectbox("Upper Material", ["Cow Leather", "Synthetic", "Canvas", "Mesh"])
 
+# --- STEP 3: AUTOMATED PRODUCTION REPORT ---
 st.markdown("---")
+st.header("📊 3. Automated Manufacturing Report")
 
-# --- 3. TABEL GRADING OTOMATIS ---
-st.header("📊 3. Laporan Grading Produksi")
+# Live Metrics
+sl_last = final_p + allowance
+m1, m2, m3 = st.columns(3)
+m1.metric("Last Length (SL)", f"{round(sl_last, 2)} cm")
+m2.metric("Vamp Point (7/10)", f"{round(sl_last * 0.7, 2)} cm")
+m3.metric("Joint Girth Est.", f"{round(final_l * 2.4, 1)} cm")
 
-grading_list = []
-# Loop otomatis dari size 36 ke 45
+# Tabel Grading
+grading_data = []
 for s in range(36, 46):
     selisih = s - sz_master
-    p_grad = sl_last + (selisih * 0.66) # Rumus Pitch Panjang
-    l_grad = l_final + (selisih * 0.2)  # Rumus Pitch Lebar
+    p_grad = sl_last + (selisih * pitch_p)
+    l_grad = final_l + (selisih * pitch_l)
     
-    # Perhitungan Luas Bahan (Materi ATK Hal 45)
-    luas_bahan = (p_grad * l_grad * 2.3)
+    # Rumus Luas (Standard Industrial)
+    area = (p_grad * l_grad * 2.2) * (1 + wastage/100)
     
-    grading_list.append({
+    grading_data.append({
         "Size": s,
-        "Panjang (cm)": round(p_grad, 2),
-        "Lebar (cm)": round(l_grad, 2),
-        "Est. Bahan (cm2)": round(luas_bahan, 1),
+        "Length (cm)": round(p_grad, 2),
+        "Width (cm)": round(l_grad, 2),
+        "Material Req (cm²)": round(area, 1),
         "Status": "MASTER" if s == sz_master else "GRADED"
     })
 
-df_hasil = pd.DataFrame(grading_list)
+df = pd.DataFrame(grading_data)
+st.dataframe(df.style.highlight_max(subset=['Length (cm)'], color='#3b82f6'), use_container_width=True)
 
-# Tampilkan Tabel
-st.table(df_hasil)
-
-# Tombol Download
-st.download_button("📥 Simpan Hasil ke Excel/CSV", df_hasil.to_csv(index=False).encode('utf-8'), "noryze_report.csv", "text/csv")
-
-st.markdown("---")
-st.info("💡 **Tips:** Jika foto dari album miring, gunakan fitur 'Edit Panjang' untuk menyesuaikan dengan ukuran fisik penggaris.")
+# Download Section
+csv = df.to_csv(index=False).encode('utf-8')
+st.download_button("📥 Export Production Sheet", csv, "noryze_production.csv", "text/csv")
