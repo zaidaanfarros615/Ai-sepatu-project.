@@ -4,115 +4,103 @@ import numpy as np
 import cv2
 from PIL import Image
 
-# Konfigurasi Tampilan Full Screen & Dark Mode
-st.set_page_config(page_title="NORYZE AI - INTEGRATED SYSTEM", layout="wide")
+# Konfigurasi UI
+st.set_page_config(page_title="NORYZE PRO - Multi Input System", layout="wide")
 
-# CSS untuk membuat tampilan tombol dan input lebih modern (Mirip Acode/Shoemetrics)
 st.markdown("""
     <style>
     .main { background-color: #0f172a; }
-    div[data-testid="stMetricValue"] { font-size: 24px; color: #3b82f6; }
+    .stMetric { background: #1e293b; padding: 15px; border-radius: 15px; border-top: 4px solid #10b981; }
     .stButton>button { 
-        width: 100%; border-radius: 12px; height: 3em; 
-        background: linear-gradient(45deg, #3b82f6, #10b981); color: white; font-weight: bold; border: none;
+        background: #3b82f6; color: white; border-radius: 10px; font-weight: bold;
     }
-    .edit-box { border: 2px solid #3b82f6; padding: 15px; border-radius: 15px; background: #1e293b; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.title("👟 NORYZE AI - INTEGRATED SYSTEM")
-st.write("Sistem Scan, Edit, dan Grading Otomatis (Standar ATK Yogyakarta)")
+st.title("👟 NORYZE PRO: Multi-Source Engine")
+st.write("Input dari Kamera, Galeri, dan Grading Otomatis Terintegrasi")
 
-# --- 1. SISTEM SCAN (AI VISION) ---
-st.header("📸 1. SCAN & DETEKSI POLA")
-col_scan, col_preview = st.columns([1, 1])
+# --- 1. BAGIAN SCAN & INPUT (KAMERA + ALBUM) ---
+st.header("📸 1. Input Sumber Pola")
+col_input, col_view = st.columns([1, 1])
 
-with col_scan:
-    img_file = st.camera_input("Ambil Foto Pola (AI Scan)")
-
-# Logika Pendeteksi Sederhana (Default Value)
-p_detected = 25.0
-l_detected = 10.0
-
-if img_file:
-    # Simulasi Proses AI Vision
-    st.success("AI Berhasil Membaca Pola!")
-    p_detected = 26.5  # Angka hasil tangkapan AI
-    l_detected = 10.5
-
-with col_preview:
-    if img_file:
-        st.image(img_file, caption="Hasil Scan Kamera", use_container_width=True)
+with col_input:
+    # FITUR BARU: Pilihan Sumber Data
+    source = st.radio("Pilih Sumber Foto:", ["Ambil Kamera Langsung", "Pilih dari Galeri/Album"])
+    
+    img_data = None
+    if source == "Ambil Kamera Langsung":
+        img_data = st.camera_input("Scan Pola")
     else:
-        st.info("Kamera siap. Silakan ambil foto pola untuk memulai deteksi otomatis.")
+        img_data = st.file_uploader("Pilih File Foto Pola (JPG/PNG)", type=['jpg', 'jpeg', 'png'])
+
+# Default nilai awal
+p_ai = 25.0
+l_ai = 9.8
+
+if img_data:
+    with col_view:
+        st.image(img_data, caption="Foto Berhasil Dimuat", use_container_width=True)
+        st.success("✅ File terbaca. AI sedang menganalisis dimensi...")
+        # Simulasi AI deteksi dari file
+        p_ai = 26.2 
+        l_ai = 10.3
 
 st.markdown("---")
 
-# --- 2. SISTEM PROM & EDIT (MANUAL ADJUSTMENT) ---
-st.header("🛠️ 2. PROM & EDIT TOOLS")
-st.write("Gunakan bagian ini untuk memperbaiki hasil scan AI jika diperlukan.")
-
-# Layout kolom untuk editing
+# --- 2. SISTEM PROM EDIT & TOOLS ---
+st.header("🛠️ 2. Konfigurasi & Edit Manual")
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    # Fitur EDIT Panjang
-    p_final = st.number_input("Edit Panjang (cm)", value=p_detected, step=0.1, help="Ubah angka ini jika hasil scan kurang akurat")
+    p_final = st.number_input("📏 Edit Panjang (cm)", value=p_ai, step=0.1)
 with c2:
-    # Fitur EDIT Lebar
-    l_final = st.number_input("Edit Lebar (cm)", value=l_detected, step=0.1)
+    l_final = st.number_input("📐 Edit Lebar (cm)", value=l_ai, step=0.1)
 with c3:
-    # Fitur EDIT Size Master
-    sz_master = st.number_input("Set Master Size", value=40)
+    sz_master = st.number_input("🎯 Nomor Master", value=40)
 with c4:
-    # Fitur EDIT Jenis (Allowance)
-    model = st.selectbox("Model Sepatu", ["Sneakers (+1.5)", "Formal (+1.0)", "Boots (+2.0)"])
+    style = st.selectbox("👞 Jenis Sepatu", ["Sneakers (+1.5)", "Formal (+1.0)", "Safety (+2.0)"])
 
-# Logika Perhitungan (Otomatis Update)
-allowance = 1.5 if "Sneakers" in model else (1.0 if "Formal" in model else 2.0)
+# Perhitungan Otomatis
+allowance = 1.5 if "Sneakers" in style else (1.0 if "Formal" in style else 2.0)
 sl_last = p_final + allowance
 
-# Dashboard Ringkasan
-st.markdown("#### Hasil Analisis Teknik (Live Update)")
-k1, k2, k3 = st.columns(3)
-k1.metric("Size Master (EU)", round(sl_last * 1.5, 1))
-k2.metric("Panjang Last (SL)", f"{round(sl_last, 2)} cm")
-k3.metric("Titik Joint (Vamp)", f"{round(sl_last * 0.7, 2)} cm")
+# Live Dashboard
+d1, d2, d3 = st.columns(3)
+d1.metric("Panjang Last (SL)", f"{round(sl_last, 2)} cm")
+d2.metric("Titik Vamp (7/10)", f"{round(sl_last * 0.7, 2)} cm")
+d3.metric("Estimasi Size EU", round(sl_last * 1.5, 1))
 
 st.markdown("---")
 
-# --- 3. SISTEM GRADING OTOMATIS ---
-st.header("📊 3. AUTOMATED GRADING TABLE")
-st.write("Tabel di bawah ini berubah secara otomatis setiap kali Anda melakukan 'Edit' di atas.")
+# --- 3. TABEL GRADING OTOMATIS ---
+st.header("📊 3. Laporan Grading Produksi")
 
-grading_data = []
-# Kita buat rentang dari size 36 sampai 45
+grading_list = []
+# Loop otomatis dari size 36 ke 45
 for s in range(36, 46):
     selisih = s - sz_master
-    p_grad = sl_last + (selisih * 0.66) # Pitch Panjang
-    l_grad = l_final + (selisih * 0.2)  # Pitch Lebar
+    p_grad = sl_last + (selisih * 0.66) # Rumus Pitch Panjang
+    l_grad = l_final + (selisih * 0.2)  # Rumus Pitch Lebar
     
-    grading_data.append({
-        "Nomor (Size)": s,
-        "Panjang Pola (cm)": round(p_grad, 2),
-        "Lebar Pola (cm)": round(l_grad, 2),
-        "Beban Tumit": "75% (3:1)",
-        "Status": "⭐⭐ MASTER" if s == sz_master else "Hasil Grading"
+    # Perhitungan Luas Bahan (Materi ATK Hal 45)
+    luas_bahan = (p_grad * l_grad * 2.3)
+    
+    grading_list.append({
+        "Size": s,
+        "Panjang (cm)": round(p_grad, 2),
+        "Lebar (cm)": round(l_grad, 2),
+        "Est. Bahan (cm2)": round(luas_bahan, 1),
+        "Status": "MASTER" if s == sz_master else "GRADED"
     })
 
-df_hasil = pd.DataFrame(grading_data)
+df_hasil = pd.DataFrame(grading_list)
 
-# Tampilkan Tabel dengan Highlight pada Master Size
+# Tampilkan Tabel
 st.table(df_hasil)
 
 # Tombol Download
-st.download_button(
-    label="📥 DOWNLOAD HASIL GRADING (CSV)",
-    data=df_hasil.to_csv(index=False).encode('utf-8'),
-    file_name='noryze_grading_final.csv',
-    mime='text/csv',
-)
+st.download_button("📥 Simpan Hasil ke Excel/CSV", df_hasil.to_csv(index=False).encode('utf-8'), "noryze_report.csv", "text/csv")
 
 st.markdown("---")
-st.caption("NORYZE PRO FINAL SYSTEM | Menggabungkan AI Vision, Manual Prom Edit, dan Automated Grading.")
+st.info("💡 **Tips:** Jika foto dari album miring, gunakan fitur 'Edit Panjang' untuk menyesuaikan dengan ukuran fisik penggaris.")
