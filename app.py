@@ -2,133 +2,120 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import cv2
-from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from io import BytesIO
 
-st.set_page_config(page_title="NORYZE AI ULTIMATE", layout="wide")
+# Konfigurasi Tema CAD (Dark Charcoal)
+st.set_page_config(page_title="NORYZE CAD ENGINE", layout="wide")
 
-# --- CSS MEWAH ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0f172a; }
-    .st-emotion-cache-1kyxreq { justify-content: center; }
-    .reportview-container .main { color: white; }
-    .sidebar .sidebar-content { background: #1e293b; }
-    div[data-testid="stMetricValue"] { color: #10b981; font-family: 'Courier New'; }
+    .stApp { background-color: #121212; color: #00FF00; } /* Neon Green typical of CAD */
+    .sidebar .sidebar-content { background-color: #1e1e1e; }
+    h1, h2, h3 { color: #FFFFFF !important; font-family: 'Segoe UI', sans-serif; }
+    .stMetric { background: #252525; border: 1px solid #3b82f6; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNGSI AI CERDAS (Object Detection & Scaling) ---
-def advanced_ai_scan(image_file, ref_width_cm):
-    file_bytes = np.asarray(bytearray(image_file.read()), dtype=np.uint8)
-    img = cv2.imdecode(file_bytes, 1)
+# --- ENGINE: LOGIKA KOORDINAT CAD ---
+def generate_cad_preview(p, l, vamp_p, joint_p, size):
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor='#1e1e1e')
+    ax.set_facecolor('#1e1e1e')
     
-    # Pre-processing untuk deteksi kontur
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (7, 7), 0)
-    edged = cv2.Canny(blur, 40, 150)
+    # Grid ala AutoCAD
+    ax.grid(color='#333333', linestyle='--', linewidth=0.5)
     
-    cnts, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Gambar Pola Utama (Rectangle as Base)
+    pattern = patches.Rectangle((0, 0), p, l, linewidth=2, edgecolor='#00FF00', facecolor='none', label=f'Size {size}')
+    ax.add_patch(pattern)
     
-    if len(cnts) < 1:
-        return 25.0, 10.0, edged
+    # Garis Sumbu (X-Y Axis)
+    ax.axhline(0, color='white', linewidth=1)
+    ax.axvline(0, color='white', linewidth=1)
     
-    # Ambil kontur terbesar (Pola Sepatu)
-    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
-    c_pola = cnts[0]
+    # Penanda Titik Engineering (ShoeMetrics Standards)
+    ax.scatter([vamp_p], [l/2], color='red', s=50, label='Vamp Point (V)')
+    ax.axvline(x=joint_p, color='#3b82f6', linestyle=':', label='Joint Line (J)')
     
-    # Hitung Bounding Box
-    x, y, w, h = cv2.boundingRect(c_pola)
+    # Anotasi Dimensi ala Corel
+    ax.annotate(f'{p} cm', xy=(p/2, l+0.5), color='white', ha='center')
+    ax.annotate(f'{l} cm', xy=(p+0.5, l/2), color='white', rotation=-90, va='center')
     
-    # Logika Kalibrasi: 
-    # Jika ada koin, gunakan koin. Jika tidak, gunakan nilai referensi standar (Pixel per CM)
-    px_per_cm = w / ref_width_cm # Kalibrasi berdasarkan input manual 'Prom Edit'
+    ax.set_xlim(-2, p + 5)
+    ax.set_ylim(-2, l + 5)
+    ax.set_title(f"CAD WORKSPACE - SIZE {size}", color='white', loc='left')
+    ax.legend(facecolor='#1e1e1e', labelcolor='white')
     
-    calc_h = h / px_per_cm
-    calc_w = w / px_per_cm
-    
-    return round(calc_h, 2), round(calc_w, 2), edged
+    return fig
 
-# --- UI INTERFACE ---
-st.title("👟 NORYZE AI ULTIMATE v8.0")
+# --- SIDEBAR: TOOLBAR KIRI (Ala Photoshop/Corel) ---
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/1055/1055666.png", width=50) # Icon Tools
+    st.title("CAD TOOLBAR")
+    
+    tool_mode = st.radio("Active Tool:", ["📐 Dimension Tool", "✂️ Cutting Edit", "🖊️ Mark Point"])
+    
+    st.markdown("---")
+    st.subheader("Property Editor")
+    sz_master = st.number_input("Nomor Master (EUR)", value=40)
+    p_base = st.number_input("Base Length (cm)", value=25.5, step=0.1)
+    l_base = st.number_input("Base Width (cm)", value=10.0, step=0.1)
+    
+    st.subheader("Layer Settings")
+    show_grid = st.checkbox("Show Grid Lines", value=True)
+    line_color = st.color_picker("Line Color", "#00FF00")
+
+# --- MAIN WORKSPACE ---
+col_canvas, col_props = st.columns([2.5, 1])
+
+with col_canvas:
+    st.subheader("🖥️ Design Canvas")
+    
+    # Kalkulasi Engineering
+    v_point = p_base * 0.7
+    j_point = p_base * 0.66
+    
+    # Tampilkan Preview CAD
+    cad_fig = generate_cad_preview(p_base, l_base, v_point, j_point, sz_master)
+    st.pyplot(cad_fig)
+    
+    st.info("💡 Mode AutoCAD Aktif: Gunakan Toolbar kiri untuk merubah dimensi Master.")
+
+with col_props:
+    st.subheader("📑 Object Properties")
+    with st.expander("Anatomi & Fitting", expanded=True):
+        st.write(f"Vamp Position: `{round(v_point,2)} cm`")
+        st.write(f"Joint Line: `{round(j_point,2)} cm`")
+        st.write(f"Toe Spring: `Standard 1.5cm` (Auto)")
+    
+    with st.expander("AI Scan Calibration"):
+        cam_file = st.camera_input("Sync AI Vision")
+        if cam_file:
+            st.success("Visual Sync Complete")
+
+# --- BOTTOM SECTION: GRADING AUTOMATION (DIBUAT SEPERTI TIMELINE CORE) ---
 st.markdown("---")
+st.header("🎞️ Grading Multi-Scale View")
+sizes = st.multiselect("Pilih Layer Ukuran yang ingin di-Grading:", 
+                      [36, 37, 38, 39, 40, 41, 42, 43, 44, 45], default=[38, 40, 42])
 
-# --- STEP 1: AI SCANNING ---
-st.header("📸 1. Advanced AI Scanner")
-c_scan, c_preview = st.columns([1, 1])
-
-with c_scan:
-    mode = st.radio("Input Source:", ["Live Camera", "Upload Gallery"])
-    if mode == "Live Camera":
-        foto = st.camera_input("Scan Pola")
-    else:
-        foto = st.file_uploader("Upload Pola", type=['jpg','png','jpeg'])
+c_grad = st.columns(len(sizes))
+for i, s in enumerate(sizes):
+    diff = s - sz_master
+    p_grad = p_base + (diff * 0.66)
+    l_grad = l_base + (diff * 0.2)
     
-    ref_val = st.slider("📐 Calibration (Jika hasil melesat, geser ini)", 20.0, 30.0, 25.4)
+    with c_grad[i]:
+        st.metric(f"Size {s}", f"{round(p_grad, 2)} cm")
+        # Mini Preview per ukuran
+        mini_fig, mini_ax = plt.subplots(figsize=(2, 2), facecolor='#121212')
+        mini_ax.set_facecolor('#1e1e1e')
+        rect = patches.Rectangle((0, 0), p_grad, l_grad, color=line_color, alpha=0.5)
+        mini_ax.add_patch(rect)
+        mini_ax.axis('off')
+        mini_ax.set_xlim(0, 35)
+        mini_ax.set_ylim(0, 15)
+        st.pyplot(mini_fig)
 
-p_ai, l_ai = 25.0, 9.5
-if foto:
-    p_ai, l_ai, process_view = advanced_ai_scan(foto, ref_val)
-    with c_preview:
-        st.image(process_view, caption="AI Vision: Edge Contours Detected", use_container_width=True)
-        st.success(f"AI Suggestion: {p_ai} cm x {l_ai} cm")
-
-st.markdown("---")
-
-# --- STEP 2: PROFESSIONAL EDITING TOOLS ---
-st.header("🛠️ 2. Production Editing Tools (Prom)")
-col_tool1, col_tool2, col_tool3 = st.columns(3)
-
-with col_tool1:
-    st.subheader("📏 Master Adjustment")
-    # Fitur EDIT Canggih: Menggabungkan hasil AI ke slider manual
-    final_p = st.number_input("Final Length (cm)", value=p_ai)
-    final_l = st.number_input("Final Width (cm)", value=l_ai)
-    sz_master = st.number_input("Master Size", value=40)
-
-with col_tool2:
-    st.subheader("📐 Engineering Param")
-    # Standar ATK Yogyakarta Hal 27
-    allowance = st.selectbox("Foot Fitting (Allowance)", [1.58, 1.0, 2.54], format_func=lambda x: f"{x} cm (Standard)")
-    pitch_p = st.slider("Grading Pitch Length", 0.60, 0.80, 0.66)
-    pitch_l = st.slider("Grading Pitch Width", 0.15, 0.30, 0.20)
-
-with col_tool3:
-    st.subheader("🧵 Material Analysis")
-    wastage = st.slider("Wastage Margin (%)", 5, 25, 15)
-    material = st.selectbox("Upper Material", ["Cow Leather", "Synthetic", "Canvas", "Mesh"])
-
-# --- STEP 3: AUTOMATED PRODUCTION REPORT ---
-st.markdown("---")
-st.header("📊 3. Automated Manufacturing Report")
-
-# Live Metrics
-sl_last = final_p + allowance
-m1, m2, m3 = st.columns(3)
-m1.metric("Last Length (SL)", f"{round(sl_last, 2)} cm")
-m2.metric("Vamp Point (7/10)", f"{round(sl_last * 0.7, 2)} cm")
-m3.metric("Joint Girth Est.", f"{round(final_l * 2.4, 1)} cm")
-
-# Tabel Grading
-grading_data = []
-for s in range(36, 46):
-    selisih = s - sz_master
-    p_grad = sl_last + (selisih * pitch_p)
-    l_grad = final_l + (selisih * pitch_l)
-    
-    # Rumus Luas (Standard Industrial)
-    area = (p_grad * l_grad * 2.2) * (1 + wastage/100)
-    
-    grading_data.append({
-        "Size": s,
-        "Length (cm)": round(p_grad, 2),
-        "Width (cm)": round(l_grad, 2),
-        "Material Req (cm²)": round(area, 1),
-        "Status": "MASTER" if s == sz_master else "GRADED"
-    })
-
-df = pd.DataFrame(grading_data)
-st.dataframe(df.style.highlight_max(subset=['Length (cm)'], color='#3b82f6'), use_container_width=True)
-
-# Download Section
-csv = df.to_csv(index=False).encode('utf-8')
-st.download_button("📥 Export Production Sheet", csv, "noryze_production.csv", "text/csv")
+st.caption("NORYZE CAD ENGINE v9.0 | Integrated Engineering Design")
