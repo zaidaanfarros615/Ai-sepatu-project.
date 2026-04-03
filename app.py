@@ -5,97 +5,118 @@ from PIL import Image
 import io
 
 # --- KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="AI Design Assistant", layout="wide")
+st.set_page_config(page_title="Shoe-Edu: Footwear Learning Hub", layout="wide")
 
-# --- CUSTOM CSS (Sangat Mirip dengan Gambar Referensi) ---
+# --- CUSTOM CSS (Tema Dark & Purple) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0c0c0c; color: white; }
-    h1, h2, h3 { font-family: 'Inter', sans-serif; color: white !important; }
-    .purple-text { color: #a855f7; font-weight: bold; }
-    .card {
+    h1, h2, h3 { font-family: 'Inter', sans-serif; color: #a855f7 !important; }
+    .content-card {
         background-color: #161616;
         border: 1px solid #262626;
-        padding: 2rem;
-        border-radius: 20px;
-    }
-    .stButton>button {
-        background: linear-gradient(135deg, #a855f7 0%, #6d28d9 100%);
-        color: white; border: none; border-radius: 10px; width: 100%;
-    }
-    .upload-box {
-        border: 2px dashed #a855f7;
-        padding: 20px;
+        padding: 25px;
         border-radius: 15px;
-        text-align: center;
+        margin-bottom: 20px;
     }
+    .highlight { color: #a855f7; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HERO SECTION ---
-st.markdown('<h1 style="text-align: center;">AI <span class="purple-text">Vision</span> Assistant</h1>', unsafe_allow_html=True)
-st.markdown('<p style="text-align: center; color: #888;">Transform your images with AI Edge Detection technology based on your Python script.</p>', unsafe_allow_html=True)
+# --- HEADER ---
+st.title("👟 Shoe-Edu: Teknik Pengembangan Produk")
+st.write("Modul Digital Politeknik ATK Yogyakarta - *Belajar Anatomi, Material, & Desain*")
 st.write("---")
 
-# --- MAIN CONTENT (Kemampuan dari File Anda) ---
-col1, col2 = st.columns([1, 1], gap="large")
+# --- NAVIGASI SLIDE (TABS) ---
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🦴 Anatomi Kaki", 
+    "🧪 Material Alas Kaki", 
+    "📏 Foot Fitting", 
+    "🖼️ AI Design Tool"
+])
 
-with col1:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<h3><span class="purple-text">1.</span> Upload Image</h3>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Pilih gambar (JPG/PNG)", type=['jpg', 'jpeg', 'png'])
-    
-    # Slider untuk parameter Canny (Logika dari script Anda)
-    st.markdown('<h3><span class="purple-text">2.</span> AI Parameters</h3>', unsafe_allow_html=True)
-    low_threshold = st.slider("Low Threshold", 0, 255, 100)
-    high_threshold = st.slider("High Threshold", 0, 255, 200)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col2:
-    if uploaded_file is not None:
-        # Load Gambar
-        image = Image.open(uploaded_file)
-        img_array = np.array(image)
-        
-        # Logika Pemrosesan (Sesuai salinan_dari_untitled3.py)
-        # Mengonversi ke Grayscale lalu Edge Detection
-        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-        edges = cv2.Canny(gray, low_threshold, high_threshold)
-        
-        st.markdown('<h3>Processing <span class="purple-text">Result</span></h3>', unsafe_allow_html=True)
-        st.image(edges, caption="AI Generated Edge Detection", use_column_width=True, clamp=True)
-        
-        # Tombol Download
-        result_img = Image.fromarray(edges)
-        buf = io.BytesIO()
-        result_img.save(buf, format="PNG")
-        st.download_button("Download Result", buf.getvalue(), "ai_design_result.png", "image/png")
-    else:
-        st.markdown('<div style="height: 300px; display: flex; align-items: center; justify-content: center; background: #161616; border-radius: 20px; border: 1px solid #262626;">', unsafe_allow_html=True)
-        st.write("Awaiting image upload...")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- PRICING SECTION (Visual Only) ---
-st.write("---")
-st.markdown('<h2 style="text-align:center">Affordable <span class="purple-text">Plans</span></h2>', unsafe_allow_html=True)
-p1, p2, p3 = st.columns(3)
-
-plans = [
-    {"name": "Free", "price": "$0", "features": ["Basic Detection", "5 Daily Exports"]},
-    {"name": "Pro", "price": "$15", "features": ["Advanced AI", "Unlimited Exports", "Priority Support"]},
-    {"name": "Enterprise", "price": "$49", "features": ["Custom API", "Batch Processing", "Dedicated Server"]}
-]
-
-for i, p in enumerate(plans):
-    with [p1, p2, p3][i]:
-        # Memberikan efek warna ungu pada kartu tengah (Pro)
-        style = 'style="background: linear-gradient(135deg, #a855f7 0%, #6d28d9 100%);"' if p['name'] == "Pro" else 'class="card"'
-        st.markdown(f"""
-            <div {style if p['name'] == "Pro" else 'class="card"'}>
-                <small>{p['name'].upper()}</small>
-                <h2>{p['price']}<span style="font-size: 15px;">/mo</span></h2>
-                <ul style="color: {'white' if p['name'] == 'Pro' else '#888'}; font-size: 14px;">
-                    {"".join([f"<li>✓ {f}</li>" for f in p['features']])}
-                </ul>
-            </div>
+# --- TAB 1: ANATOMI KAKI ---
+with tab1:
+    st.header("Anatomi Kaki & Biomekanika")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        <div class="content-card">
+        <h3>Struktur Kaki</h3>
+        Kaki manusia adalah struktur kompleks yang terdiri dari:
+        <ul>
+            <li><b>26 Tulang</b> (Tarsus, Metatarsus, Phalanges)</li>
+            <li><b>Sendi & Otot</b> untuk fleksibilitas</li>
+            <li><b>Ligament & Tendon</b> sebagai pengikat dan penggerak</li>
+        </ul>
+        <br>
+        <p><b>Fungsi Utama:</b></p>
+        1. <i>Weight Bearing</i> (Menahan beban tubuh)<br>
+        2. <i>Propulsion</i> (Pendorong saat melangkah)<br>
+        3. <i>Shock Absorbing</i> (Peredam benturan)
+        </div>
         """, unsafe_allow_html=True)
+    with col2:
+        st.info("💡 **Tips Desain:** Desainer harus memahami letak sendi agar sepatu tidak menghambat gerakan alami kaki saat menekuk (flexing).")
+
+# --- TAB 2: MATERIAL ---
+with tab2:
+    st.header("Klasifikasi Material")
+    m1, m2, m3 = st.columns(3)
+    
+    with m1:
+        st.subheader("Upper")
+        st.write("- Kulit Sapi/Kambing (Genuine Leather)")
+        st.write("- Kulit Sintetis (PU/PVC)")
+        st.write("- Tekstil (Canvas, Mesh, Flyknit)")
+        
+    with m2:
+        st.subheader("Midsole")
+        st.write("- **EVA:** Ringan & murah")
+        st.write("- **Phylon:** Lebih empuk & awet")
+        st.write("- **PU:** Stabil tapi bisa hidrolisis")
+        
+    with m3:
+        st.subheader("Outsole")
+        st.write("- **Rubber:** Anti-selip & kuat")
+        st.write("- **TPR:** Ringan & fleksibel")
+        st.write("- **PVC:** Tahan lama tapi kaku")
+
+# --- TAB 3: FOOT FITTING ---
+with tab3:
+    st.header("Prinsip Kesesuaian (Fitting)")
+    st.warning("Desain yang buruk dapat menyebabkan kelainan kaki seperti Flat Foot atau Hallux Valgus.")
+    
+    st.markdown("""
+    <div class="content-card">
+    <h4>Standard Allowance (Ruang Tambahan)</h4>
+    Untuk kenyamanan, panjang sepatu harus menyisakan ruang dari ujung jari kaki:
+    <br><br>
+    <ul>
+        <li><b>Dewasa:</b> Minimal 5/8 inch (± 1.5 cm)</li>
+        <li><b>Anak-anak:</b> Membutuhkan ruang tumbuh yang lebih fleksibel</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- TAB 4: AI DESIGN TOOL ---
+with tab4:
+    st.header("AI Vision Assistant")
+    st.write("Gunakan fitur ini untuk memperjelas sketsa desain sepatu Anda.")
+    
+    up_file = st.file_uploader("Upload Sketsa Desain", type=['jpg', 'png'])
+    if up_file:
+        img = Image.open(up_file)
+        img_np = np.array(img)
+        
+        # Sesuai logika coding sebelumnya
+        low = st.sidebar.slider("Detail Level (Low)", 0, 255, 100)
+        high = st.sidebar.slider("Detail Level (High)", 0, 255, 200)
+        
+        gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+        edges = cv2.Canny(gray, low, high)
+        
+        c1, c2 = st.columns(2)
+        c1.image(img, caption="Original Sketch")
+        c2.image(edges, caption="AI Edge Detection", clamp=True)
