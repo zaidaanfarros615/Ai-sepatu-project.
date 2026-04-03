@@ -1,5 +1,4 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
 
 # Judul Utama Website
@@ -36,11 +35,35 @@ if st.button("🚀 PROSES GRADING SEKARANG"):
             })
             
         st.success("✅ Berhasil Dihitung!")
-        st.table(pd.DataFrame(data_grading))
         
-        # Tombol Download
-        csv = pd.DataFrame(data_grading).to_csv(index=False).encode('utf-8')
-        st.download_button("⬇️ Download Data CSV", data=csv, file_name='noryze_grading.csv')
+        # Kolom Tampilan: Kiri untuk Tabel, Kanan untuk Visual
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.subheader("📊 Tabel Ukuran")
+            df = pd.DataFrame(data_grading)
+            st.table(df)
+            
+            # Tombol Download
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("⬇️ Download Data CSV", data=csv, file_name='noryze_grading.csv')
+
+        with col2:
+            st.subheader("📐 Visual Perbandingan")
+            # Membuat kotak sederhana untuk visualisasi skala
+            for d in data_grading:
+                label = f"Size {d['Nomor']}"
+                # Skala diperkecil agar pas di layar
+                width = d['Lebar (cm)'] * 5
+                height = d['Panjang (cm)'] * 5
+                color = "#4CAF50" if d['Status'] == "MASTER" else "#2196F3"
+                
+                st.write(f"{label}: {d['Panjang (cm)']} x {d['Lebar (cm)']} cm")
+                st.markdown(
+                    f'<div style="width:{width}px; height:{height}px; background-color:{color}; border:1px solid white; margin-bottom:10px; border-radius:5px;"></div>', 
+                    unsafe_allow_html=True
+                )
 
 st.markdown("---")
+st.info("💡 Warna hijau adalah Ukuran Master, warna biru adalah hasil Grading.")
 st.write("Dibuat untuk Noryze Sistem Alas Kaki")
